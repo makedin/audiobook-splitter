@@ -163,7 +163,7 @@ while (start < end):
     outfilename = outputdir + prefix + str(part) + "." + args.format
     if args.dry_run:
         print(outfilename + " [" + format_time(start) + "-" +
-                format_time(end) + "]")
+                format_time(partend) + "]")
     else:
         work_queue.put((args.filename, start, partend, args.speedup,
             outfilename));
