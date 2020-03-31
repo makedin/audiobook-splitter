@@ -135,8 +135,8 @@ else:
         prefix = f"{prefix}-"
 
 if not args.outputdir is None:
-    outputdir = args.outputdir + "/"
-    if not path.isdir(outputdir):
+    outputdir = args.outputdir
+    if not path.isdir(outputdir) and not args.dry_run:
         mkdir(outputdir)
 else:
     outputdir = ""
