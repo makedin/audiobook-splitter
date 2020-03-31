@@ -7,6 +7,7 @@ from threading import Thread
 import argparse
 from sys import stderr, exit
 from os import path, mkdir
+from typing import List, Tuple, Union, Literal
 
 parser = argparse.ArgumentParser(description="Split up an audio file into "
         "multiple shorter files.")
@@ -43,12 +44,12 @@ parser.add_argument("--dry-run", action="store_const",
 args = parser.parse_args()
 
 
-def get_file_length(filename):
-    fileend = False
+def get_file_length(filename: str) -> Union[float, Literal[False]]:
+    fileend: Union[float, Literal[False]] = False
     try:
         info = Popen(["mediainfo", "--Output=Audio;%Duration%", filename],
                 stdout=PIPE)
-        if info.wait() == 0:
+        if info.wait() == 0 and info.stdout is not None:
             lenstring = info.stdout.read().strip()
             if lenstring.isdigit():
                 fileend = int(lenstring)/1000
@@ -60,24 +61,26 @@ def get_file_length(filename):
 
     return fileend
 
-def format_time(sec):
+def format_time(sec) -> str:
     return strftime("%H:%M:%S", gmtime(sec))
 
-def parse_time(time):
-    hhmmss = time.strip().split(":")
+def parse_time(time: str) -> int:
+    hhmmss: List[str] = time.strip().split(":")
     if len(hhmmss) != 3:
         error_print(f'badly formatted time "{time}"', "error");
         return False
-    i = 0
-    for place in hhmmss:
-        if not place.isdigit():
-            return False
-        hhmmss[i] = int(place)
-        i += 1
 
-    if hhmmss[1] > 59 or hhmmss[2] > 59:
+    try:
+        hours = int(hhmmss[0])
+        minutes = int(hhmmss[1])
+        seconds = int(hhmmss[2])
+    except:
         return False
-    return hhmmss[0] * 3600 + hhmmss[1] * 60 + hhmmss[2]
+
+    if minutes > 59 or seconds > 59:
+        return False
+
+    return hours * 3600 + minutes * 60 + seconds
 
 
 def split_part(filename, start, end, speedup, outfile):
@@ -95,7 +98,7 @@ def split_dispatcher():
                     and ending at {params[2]} into {params[4]}')
         work_queue.task_done()
 
-def error_print(msg, level):
+def error_print(msg: str, level: str):
     print(f"{level}: {msg}", file=stderr)
 
 
@@ -112,7 +115,7 @@ else:
     start = 0
 
 if not args.end is None:
-    end = parse_time(args.end)
+    end = parse_time(args.end) * 1.0
     if not end:
         error_print('invalid end time', 'error');
         exit(1)
@@ -142,7 +145,7 @@ else:
     outputdir = ""
 
 
-work_queue = Queue()
+work_queue: Queue = Queue()
 
 
 duration = args.duration * 60
