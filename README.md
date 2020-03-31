@@ -1,6 +1,6 @@
 # audiobook-splitter
 
-This scrtipt calls [mpv](https://mpv.io/) to split down an audio file into multiple shorter files. It also supports speeding up (or slowing down) the new files. It relies on Python 3, mpv and, optionally, mediainfo (for determining the length of the input file).
+This scrtipt calls [mpv](https://mpv.io/) to split an audio file into multiple shorter files. It also supports speeding up (or slowing down) the audio in the resulting files. It depends on Python 3.6+, mpv and, optionally, mediainfo (for determining the length of the input file).
 
 ```
 python split.py --help
