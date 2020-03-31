@@ -66,7 +66,7 @@ def format_time(sec):
 def parse_time(time):
     hhmmss = time.strip().split(":")
     if len(hhmmss) != 3:
-        error_print('badly formatted time "' + time + '"', "error");
+        error_print(f'badly formatted time "{time}"', "error");
         return False
     i = 0
     for place in hhmmss:
@@ -81,27 +81,26 @@ def parse_time(time):
 
 
 def split_part(filename, start, end, speedup, outfile):
-    return Popen(["mpv", "--af=scaletempo", "--no-audio-display",
-        "--start=" + format_time(start), "--end=" + format_time(end),
-        "--speed=" + str(speedup * 1.0),
-        filename, "-o=" + outfile])
+    return Popen(["mpv", "--af=scaletempo", "--no-terminal",
+        f"--start={format_time(start)}", f"--end={format_time(end)}",
+        f"--speed={str(speedup * 1.0)}",
+        filename, f"-o={outfile}"])
 
 def split_dispatcher():
     while True:
         params = work_queue.get()
         p = split_part(params[0], params[1], params[2], params[3], params[4])
         if p.wait() != 0:
-            print("Error splitting part starting at " + params[1] + 
-                    " and ending at " + params[2] + 'into "' + params[4] +
-                    '".')
+            print(f'Error splitting part starting at {params[1]} \
+                    and ending at {params[2]} into {params[4]}')
         work_queue.task_done()
 
 def error_print(msg, level):
-    print(level + ": " + msg, file=stderr)
+    print(f"{level}: {msg}", file=stderr)
 
 
 if not path.isfile(args.filename):
-    error_print('file not found "' + args.filename + '"', "error")
+    error_print(f'file not found "{args.filename}"', "error")
     exit(1)
 
 if not args.start is None:
@@ -129,11 +128,11 @@ if args.threads < 1:
     exit(1)
 
 if args.prefix is None:
-    prefix = path.split(path.splitext(args.filename)[0])[1] + "-"
+    prefix = f"{path.split(path.splitext(args.filename)[0])[1]}-"
 else:
     prefix = args.prefix
     if len(prefix) > 0:
-        prefix = prefix + "-"
+        prefix = f"{prefix}-"
 
 if not args.outputdir is None:
     outputdir = args.outputdir + "/"
@@ -159,10 +158,9 @@ while (start < end):
     else:
         partend = end
 
-    outfilename = outputdir + prefix + str(part) + "." + args.format
+    outfilename = path.join(outputdir, f"{prefix}{str(part)}.{args.format}")
     if args.dry_run:
-        print(outfilename + " [" + format_time(start) + "-" +
-                format_time(partend) + "]")
+        print(f"{outfilename} [{format_time(start)}-{format_time(partend)}]")
     else:
         work_queue.put((args.filename, start, partend, args.speedup,
             outfilename));
