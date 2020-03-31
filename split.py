@@ -24,8 +24,7 @@ parser.add_argument("-d", "--duration", type=float, default=20.0,
         help="length of an individual part in minutes (defaults to 20)")
 parser.add_argument("-o", "--outputdir", help="the directory to output "
         "the newly split parts (defaults to the working directory)")
-parser.add_argument("-f", "--format", choices=['ogg', 'mp3'],
-        metavar="<filetype>", default="ogg",
+parser.add_argument("-f", "--format", metavar="<filetype>", default="ogg",
         help="the audio format to use for output (defaults to ogg)")
 parser.add_argument("-p", "--prefix", help="the prefix part of new files' "
         "names (defaults to the original file's name)")
