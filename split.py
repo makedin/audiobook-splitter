@@ -1,10 +1,9 @@
 #!/usr/bin/python
 
+import asyncio
+import argparse
 from subprocess import Popen, PIPE
 from time import gmtime, strftime
-from queue import Queue
-from threading import Thread
-import argparse
 from sys import stderr, exit
 from os import path, mkdir
 from typing import List, Tuple, Union, Literal
@@ -39,10 +38,7 @@ parser.add_argument("--dry-run", action="store_const",
         "created if run without this flag")
 
 
-
-
 args = parser.parse_args()
-
 
 def get_file_length(filename: str) -> Union[float, Literal[False]]:
     fileend: Union[float, Literal[False]] = False
@@ -81,22 +77,6 @@ def parse_time(time: str) -> int:
         return False
 
     return hours * 3600 + minutes * 60 + seconds
-
-
-def split_part(filename, start, end, speedup, outfile):
-    return Popen(["mpv", "--af=scaletempo", "--no-terminal",
-        f"--start={format_time(start)}", f"--end={format_time(end)}",
-        f"--speed={str(speedup * 1.0)}",
-        filename, f"-o={outfile}"])
-
-def split_dispatcher():
-    while True:
-        params = work_queue.get()
-        p = split_part(params[0], params[1], params[2], params[3], params[4])
-        if p.wait() != 0:
-            print(f'Error splitting part starting at {params[1]} \
-                    and ending at {params[2]} into {params[4]}')
-        work_queue.task_done()
 
 def error_print(msg: str, level: str):
     print(f"{level}: {msg}", file=stderr)
@@ -145,16 +125,9 @@ else:
     outputdir = ""
 
 
-work_queue: Queue = Queue()
-
-
-duration = args.duration * 60
-for i in range(args.threads):
-    thread = Thread(target=split_dispatcher)
-    thread.daemon = True
-    thread.start()
-
 part = args.numbering_start
+duration = args.duration * 60
+work_queue: asyncio.Queue = asyncio.Queue()
 while (start < end):
     if start + duration < end:
         partend = start + duration
@@ -165,10 +138,36 @@ while (start < end):
     if args.dry_run:
         print(f"{outfilename} [{format_time(start)}-{format_time(partend)}]")
     else:
-        work_queue.put((args.filename, start, partend, args.speedup,
+        work_queue.put_nowait((args.filename, start, partend, args.speedup,
             outfilename));
 
     start += duration
     part += 1
 
-work_queue.join()
+
+async def split_part(filename, start, end, speedup, outfile):
+    p = await asyncio.create_subprocess_exec("mpv",
+            "--af=scaletempo", "--no-terminal",
+            f"--start={format_time(start)}", f"--end={format_time(end)}",
+            f"--speed={str(speedup * 1.0)}",
+            filename, f"-o={outfile}")
+
+    if (await p.wait()) != 0:
+        print(f'Error splitting part starting at {start} \
+                and ending at {end} into {outfile}')
+
+async def split_dispatcher(queue: asyncio.Queue):
+    while True:
+        params = await queue.get()
+        await split_part(params[0], params[1], params[2], params[3], params[4])
+        work_queue.task_done()
+
+async def worker_dispatcher(threads: int = 2):
+    tasks = []
+    for i in range(threads):
+        task = asyncio.create_task(split_dispatcher(work_queue))
+        tasks.append(task)
+
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+asyncio.run(worker_dispatcher(args.threads))
